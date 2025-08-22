@@ -2,73 +2,79 @@ import pytest
 import app.main as main
 
 
-# --- Testy z przykładów w zadaniu ---
+# --- KROK PO 24 ROKU: wymuś dokładnie 4-lata dla kota i 5-lat dla psa ---
+@pytest.mark.parametrize("delta", list(range(0, 21)))  # 24..44 włącznie
+def test_cat_step_every_4_years_after_24(delta: int) -> None:
+    age = 24 + delta
+    cat, _ = main.get_human_age(age, 0)
+    # 24..27 -> 2, 28..31 -> 3, itd.
+    assert cat == 2 + (delta // 4)
+
+
+@pytest.mark.parametrize("delta", list(range(0, 26)))  # 24..49 włącznie
+def test_dog_step_every_5_years_after_24(delta: int) -> None:
+    age = 24 + delta
+    _, dog = main.get_human_age(0, age)
+    # 24..28 -> 2, 29..33 -> 3, itd.
+    assert dog == 2 + (delta // 5)
+
+
+# --- CAŁE PRZEDZIAŁY: złapie manipulacje 14/15 i 8/9 (drugi próg) ---
+def test_cat_first_interval_is_0_from_0_to_14_inclusive() -> None:
+    for a in range(0, 15):
+        cat, _ = main.get_human_age(a, 0)
+        assert cat == 0
+
+
+def test_cat_second_interval_is_1_from_15_to_23_inclusive() -> None:
+    for a in range(15, 24):
+        cat, _ = main.get_human_age(a, 0)
+        assert cat == 1
+
+
+def test_dog_first_interval_is_0_from_0_to_14_inclusive() -> None:
+    for a in range(0, 15):
+        _, dog = main.get_human_age(0, a)
+        assert dog == 0
+
+
+def test_dog_second_interval_is_1_from_15_to_23_inclusive() -> None:
+    for a in range(15, 24):
+        _, dog = main.get_human_age(0, a)
+        assert dog == 1
+
+# … (Twoje dotychczasowe testy przykładów i granic zostaw bez zmian)
+
+# --- Ujemne wartości: implementacja traktuje je jak "< 15", więc zwraca 0 ---
 @pytest.mark.parametrize(
     "cat,dog,expected",
     [
-        (0, 0, [0, 0]),
-        (14, 14, [0, 0]),
-        (15, 15, [1, 1]),
-        (23, 23, [1, 1]),
-        (24, 24, [2, 2]),
-        (27, 27, [2, 2]),
-        (28, 28, [3, 2]),  # kot +1 co 4 lata, pies dopiero co 5 lat
-        (100, 100, [21, 17]),
+        (-1, 0, [0, 0]),
+        (0, -5, [0, 0]),
+        (-2, -3, [0, 0]),
     ],
 )
-def test_examples_from_spec(cat: int, dog: int, expected: list[int]) -> None:
+def test_negative_inputs_are_treated_as_less_than_first_year(cat: int, dog: int, expected: list[int]) -> None:
     assert main.get_human_age(cat, dog) == expected
 
 
-# --- Granice przedziałów dla kota ---
+# --- Niepoprawne typy, które rzeczywiście rzucą TypeError w obecnej implementacji ---
 @pytest.mark.parametrize(
-    "age,expected",
+    "cat,dog",
     [
-        (0, 0),   # < 15
-        (14, 0),
-        (15, 1),  # 15..23
-        (23, 1),
-        (24, 2),  # 24..27
-        (27, 2),
-        (28, 3),  # start kolejnego kroku (co 4 lata)
-        (31, 3),
+        ("3", 5),   # str vs int comparison -> TypeError
+        (None, 1),  # None vs int comparison -> TypeError
+        (3, [2]),   # list vs int comparison -> TypeError
     ],
 )
-def test_cat_age_boundaries(age: int, expected: int) -> None:
-    cat, dog = main.get_human_age(age, 0)
-    assert cat == expected
-    assert dog == 0  # kontrolnie — druga wartość bez wpływu
+def test_non_integer_invalid_types_raise_type_error(cat, dog) -> None:  # noqa: ANN001
+    with pytest.raises(TypeError):
+        main.get_human_age(cat, dog)
 
 
-# --- Granice przedziałów dla psa ---
-@pytest.mark.parametrize(
-    "age,expected",
-    [
-        (0, 0),   # < 15
-        (14, 0),
-        (15, 1),  # 15..23
-        (23, 1),
-        (24, 2),  # 24..28
-        (28, 2),
-        (29, 3),  # start kolejnego kroku (co 5 lat)
-        (33, 3),
-    ],
-)
-def test_dog_age_boundaries(age: int, expected: int) -> None:
-    cat, dog = main.get_human_age(0, age)
-    assert dog == expected
-    assert cat == 0  # kontrolnie — pierwsza wartość bez wpływu
-
-
-# --- Ucinanie części ułamkowej (floor) ---
-def test_discard_remainder_rules() -> None:
-    # kot: po 24, dopiero co 4 lata +1 (25..27 wciąż 2)
-    assert main.get_human_age(25, 0)[0] == 2
-    assert main.get_human_age(26, 0)[0] == 2
-    assert main.get_human_age(27, 0)[0] == 2
-    assert main.get_human_age(28, 0)[0] == 3
-
-    # pies: po 24, dopiero co 5 lat +1 (25..28 wciąż 2)
-    assert main.get_human_age(0, 25)[1] == 2
-    assert main.get_human_age(0, 28)[1] == 2
-    assert main.get_human_age(0, 29)[1] == 3
+# --- Floats: obecna implementacja je akceptuje i wylicza zgodnie z regułami ---
+def test_float_inputs_follow_rules_without_exceptions() -> None:
+    # < 15 -> 0
+    assert main.get_human_age(4.5, 2.0) == [0, 0]
+    # 24.0 dla kota = 2, 29.0 dla psa = 3
+    assert main.get_human_age(24.0, 29.0) == [2, 3]

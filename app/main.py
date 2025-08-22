@@ -1,4 +1,10 @@
 def get_human_age(cat_age: int, dog_age: int) -> list:
+    if type(cat_age) is not int or type(dog_age) is not int:  # noqa: E721
+        raise TypeError("cat_age and dog_age must be integers")
+    if cat_age < 0 or dog_age < 0:
+        raise ValueError("cat_age and dog_age must be non-negative")
+
+def get_human_age(cat_age: int, dog_age: int) -> list:
     cat_to_human = convert_to_human(cat_age, 15, 9, 4)
     dog_to_human = convert_to_human(dog_age, 15, 9, 5)
     return [cat_to_human, dog_to_human]
